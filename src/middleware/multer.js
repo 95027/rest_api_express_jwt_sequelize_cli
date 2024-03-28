@@ -1,20 +1,39 @@
 const multer = require('multer');
 const fs = require('fs');
 
-const storage = multer.diskStorage({
-    destination:(req, file, cb) => {
+const uploadDir = "uploads/";
 
-        const uploadDir = 'uploads/';
-        if(!fs.existsSync(uploadDir)){
-            fs.mkdirSync(uploadDir);
-        }
-        cb(null, uploadDir);
+if(!fs.existsSync(uploadDir)){
+    fs.mkdirSync(uploadDir);
+}
+
+// for making sub dir if not exists
+function createDirIfNot(dir){
+    if(!fs.existsSync(dir)){
+        fs.mkdirSync(dir);
+    }
+}
+
+// making file names
+function generateFileName(file){
+    return Date.now() + '.' + file.originalname;
+}
+
+const userAvatar = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const avatarDir = 'uploads/avatars/';
+        createDirIfNot(avatarDir);
+        cb(null, avatarDir);
     },
     filename: (req, file, cb) => {
-        cb(null, Date.now() + '-' + file.originalname);
+        const avatar = generateFileName(file);
+        cb(null, avatar);
     }
 });
 
-const upload = multer({storage: storage});
 
-module.exports = upload;
+const avatarUpload = multer({storage: userAvatar});
+
+module.exports = {
+    avatarUpload,
+};

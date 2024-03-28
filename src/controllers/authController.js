@@ -3,7 +3,7 @@ const {User} = require('../models');
 const jwt = require('jsonwebtoken');
 
 const register = async (req, res, next) =>{
-
+    console.log(req.body);
     const {password, email} = req.body;
     const user =await User.findOne({where: {email}});
 
@@ -13,7 +13,7 @@ const register = async (req, res, next) =>{
 
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
-        const user = await User.create({...req.body, avatar: req.file.path, password:hashedPassword});
+        const user = await User.create({...req.body, avatar: req.file?.path, password:hashedPassword});
         res.status(200).json({
             message: 'User created successfully',
             user,
