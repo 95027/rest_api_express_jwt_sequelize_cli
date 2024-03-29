@@ -3,7 +3,7 @@ const {User} = require('../models');
 const jwt = require('jsonwebtoken');
 
 const register = async (req, res, next) =>{
-    console.log(req.body);
+
     const {password, email} = req.body;
     const user =await User.findOne({where: {email}});
 
@@ -50,7 +50,6 @@ const login = async (req, res, next) =>{
 
         res.status(500).json({ message: 'An error occurred while logging in', error: error.message});
     }
-
 }
 
 

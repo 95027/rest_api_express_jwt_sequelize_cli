@@ -7,13 +7,13 @@ const routes = require('./src/routes');
 require('dotenv').config();
 
 var corsOptions = {
-    origin: ['http://localhost:3000', 'http://127.0.0.1:5500']
+    origin: ['http://localhost:5173', 'http://127.0.0.1:5500']
 }
 // midddleware for json data from req.body
 app.use(cors(corsOptions));
 app.use(bodyParser.json());
 
-// for logging every http request
+//for logging every http request
 //app.use(morgan('combined'));
 
 const PORT = process.env.PORT || 3000;
