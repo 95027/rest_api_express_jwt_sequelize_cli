@@ -10,7 +10,6 @@ var corsOptions = {
 }
 app.use(cors(corsOptions));
 
-// midddleware for json data from req.body
 app.use(bodyParser.json());
 
 

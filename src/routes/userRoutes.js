@@ -1,9 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const {profile} = require('../controllers/userController');
-const auth = require('../middleware/authMiddleware');
+const {getAllUsers, getUserById, updateUser, deleteUser} = require('../controllers/userController');
+const { avatarUpload } = require('../middleware/multer');
 
-router.get('/profile', auth, profile);
+router.get('/', getAllUsers);
+router.get('/:id', getUserById);
+router.put('/:id', avatarUpload.single('avatar'), updateUser);
+router.delete('/:id', deleteUser);
 
 
 module.exports = router;

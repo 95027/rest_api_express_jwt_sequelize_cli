@@ -1,6 +1,8 @@
 const bcrypt = require("bcrypt");
 const { User } = require("../models");
 const jwt = require("jsonwebtoken");
+const { v4: uuidv4 } = require("uuid");
+const { passwordResetMail } = require("../utils/mail");
 
 const register = async (req, res, next) => {
   const { password, email } = req.body;
@@ -48,7 +50,6 @@ const login = async (req, res, next) => {
     // generate token
     const token = jwt.sign({ userId: user.id }, "secret_key");
     res.json({ token });
-    
   } catch (error) {
     res.status(500).json({
       message: "An error occurred while logging in",
@@ -66,7 +67,6 @@ const getUserByToken = async (req, res, next) => {
     return res
       .status(200)
       .json({ success: true, message: "User fetched successfully", user });
-
   } catch (error) {
     res.status(500).json({
       message: "An error occurred while getting user by token",
@@ -75,8 +75,64 @@ const getUserByToken = async (req, res, next) => {
   }
 };
 
+const forgotPassword = async (req, res, next) => {
+
+  const {email}  = req.body;
+
+  try {
+    const user = await User.findOne({ where: { email } });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const resetToken = uuidv4();
+    user.resetToken = resetToken;
+    await user.save();
+
+    await passwordResetMail(email, resetToken);
+
+    res.status(200).json({message: "password reset mail send successfully.."});
+
+  } catch (error) {
+    res.status(500).json({
+      message: "An error occurred while sending the mail",
+      error: error.message,
+    });
+  }
+
+};
+
+const resetPassword = async (req, res, next) => {
+
+  const { token, newPassword} = req.body;
+
+  try {
+    
+    const user = await User.findOne({where: {"resetToken": token}});
+
+    if(!user) {
+      return res.status(404).json({ message: "Invalid or expired reset token'" });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    user.resetToken = null;
+    await user.save();
+
+    res.status(200).json({ message: 'Password reset successfully' });
+
+  } catch (error) {
+    console.error('Error resetting password:', error);
+    res.status(500).json({ message: 'Error resetting password' });
+  }
+
+}
+
 module.exports = {
   register,
   login,
   getUserByToken,
+  forgotPassword,
+  resetPassword,
 };
