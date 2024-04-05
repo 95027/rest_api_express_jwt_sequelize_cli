@@ -1,5 +1,5 @@
 const bcrypt = require("bcrypt");
-const { User } = require("../models");
+const { User, ResetToken} = require("../models");
 const jwt = require("jsonwebtoken");
 const { v4: uuidv4 } = require("uuid");
 const { passwordResetMail } = require("../utils/mail");
@@ -48,7 +48,9 @@ const login = async (req, res, next) => {
     }
 
     // generate token
-    const token = jwt.sign({ userId: user.id }, "secret_key");
+    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
+      expiresIn: "1h",
+    });
     res.json({ token });
   } catch (error) {
     res.status(500).json({
@@ -61,6 +63,10 @@ const login = async (req, res, next) => {
 const getUserByToken = async (req, res, next) => {
   try {
     const userId = req.user;
+
+    if (!userId) {
+      return res.status(401).json({ message: "Invalid token" });
+    }
 
     const user = await User.findByPk(userId);
 
@@ -76,8 +82,7 @@ const getUserByToken = async (req, res, next) => {
 };
 
 const forgotPassword = async (req, res, next) => {
-
-  const {email}  = req.body;
+  const { email } = req.body;
 
   try {
     const user = await User.findOne({ where: { email } });
@@ -87,47 +92,76 @@ const forgotPassword = async (req, res, next) => {
     }
 
     const resetToken = uuidv4();
-    user.resetToken = resetToken;
-    await user.save();
+
+    const expiresAt = new Date(Date.now() + (60 * 60 * 1000)); // 1 HOUR
+
+    const oldToken = await ResetToken.findOne({where: {user_id: user.id}});
+
+    if(oldToken){
+      await oldToken.destroy();
+    }
+
+    await ResetToken.create({
+      token: resetToken,
+      expiresAt,
+      user_id: user.id,
+    });
 
     await passwordResetMail(email, resetToken);
 
-    res.status(200).json({message: "password reset mail send successfully.."});
-
+    res
+      .status(200)
+      .json({ message: "password reset mail send successfully.." });
   } catch (error) {
     res.status(500).json({
       message: "An error occurred while sending the mail",
       error: error.message,
     });
   }
-
 };
 
 const resetPassword = async (req, res, next) => {
 
-  const { token, newPassword} = req.body;
+  const { token, newPassword } = req.body;
 
   try {
-    
-    const user = await User.findOne({where: {"resetToken": token}});
 
-    if(!user) {
-      return res.status(404).json({ message: "Invalid or expired reset token'" });
+    const resetToken = await ResetToken.findOne({where:{token}});
+
+    if (!resetToken) {
+      return res.status(404).json({ message: "Invalid or expired reset token" });
+    }
+
+    if(resetToken.expiresAt < new Date()){
+
+      await resetToken.destroy();
+
+      return res.status(401).json({
+        message: "Reset token has been expired"
+      });
+
+    }
+
+    const user = await User.findByPk(resetToken.user_id);
+
+    if (!user) {
+      return res
+        .status(404)
+        .json({ message: "Invalid or expired reset token'" });
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     user.password = hashedPassword;
-    user.resetToken = null;
+
+    await resetToken.destroy();
     await user.save();
 
-    res.status(200).json({ message: 'Password reset successfully' });
-
+    res.status(200).json({ message: "Password reset successfully" });
   } catch (error) {
-    console.error('Error resetting password:', error);
-    res.status(500).json({ message: 'Error resetting password' });
+    console.error("Error resetting password:", error);
+    res.status(500).json({ message: "Error resetting password" });
   }
-
-}
+};
 
 module.exports = {
   register,
